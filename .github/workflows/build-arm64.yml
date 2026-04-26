@@ -1,0 +1,51 @@
+name: Build OpenClaw ARM64
+on:
+  workflow_dispatch: # Cho phép hiển thị nút "Run" để chạy bằng tay
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Quyền đẩy Image lên kho GHCR
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # HACK: Xóa sạch các phần mềm thừa trên máy chủ GitHub để có không gian trống cực lớn
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      # Cài đặt hệ thống giả lập ARM64
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Đăng nhập vào kho lưu trữ Container của GitHub
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Ra lệnh Đúc và Đẩy lên mây (ghcr.io)
+      - name: Build and push ARM64 Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          # Image sẽ có tên chứa tài khoản GitHub của bạn
+          tags: ghcr.io/${{ github.repository_owner }}/openclaw:arm64
